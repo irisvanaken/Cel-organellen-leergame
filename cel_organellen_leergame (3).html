@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cel-Organellen Leergame</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Fredoka', 'sans-serif'],
+                        body: ['Quicksand', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #ecfdf5;
+            background-image: 
+                radial-gradient(circle at 12% 15%, #dcfce7 0%, transparent 45%),
+                radial-gradient(circle at 88% 18%, #e0f2fe 0%, transparent 40%),
+                radial-gradient(circle at 85% 82%, #fef3c7 0%, transparent 45%),
+                radial-gradient(circle at 15% 85%, #f3e8ff 0%, transparent 40%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            user-select: none;
+            position: relative;
+        }
+
+        .font-display {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .gray-card {
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 10px 25px -5px rgba(51, 65, 85, 0.08);
+        }
+
+        .drag-item {
+            cursor: grab;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            touch-action: none;
+        }
+
+        .drag-item:active {
+            cursor: grabbing;
+            transform: scale(1.04) rotate(1deg);
+        }
+
+        .drag-item.dragging {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        .drag-item.shake-card {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #ef4444 !important;
+        }
+
+        .drop-target {
+            transition: all 0.2s ease;
+        }
+
+        .drop-target.drag-over {
+            transform: scale(1.04);
+            border-color: #0f172a !important;
+            background-color: #f1f5f9 !important;
+            box-shadow: 0 0 15px rgba(15, 23, 42, 0.15);
+        }
+
+        .drop-target.correct {
+            background-color: #f0fdf4 !important;
+            border-color: #16a34a !important;
+            color: #166534 !important;
+        }
+
+        .drop-target.wrong {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            background-color: #fef2f2 !important;
+            border-color: #ef4444 !important;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        body.theme-ocean {
+            background-color: #f0f9ff;
+            background-image: 
+                radial-gradient(circle at 12% 15%, #bae6fd 0%, transparent 45%),
+                radial-gradient(circle at 88% 18%, #e0f2fe 0%, transparent 40%),
+                radial-gradient(circle at 85% 82%, #e0e7ff 0%, transparent 45%),
+                radial-gradient(circle at 15% 85%, #dbeafe 0%, transparent 40%);
+        }
+
+        body.theme-sunset {
+            background-color: #fff1f2;
+            background-image: 
+                radial-gradient(circle at 12% 15%, #fecdd3 0%, transparent 45%),
+                radial-gradient(circle at 88% 18%, #ffedd5 0%, transparent 40%),
+                radial-gradient(circle at 85% 82%, #fef3c7 0%, transparent 45%),
+                radial-gradient(circle at 15% 85%, #f3e8ff 0%, transparent 40%);
+        }
+
+        body.theme-cosmic {
+            background-color: #faf5ff;
+            background-image: 
+                radial-gradient(circle at 12% 15%, #e9d5ff 0%, transparent 45%),
+                radial-gradient(circle at 88% 18%, #f3e8ff 0%, transparent 40%),
+                radial-gradient(circle at 85% 82%, #c7d2fe 0%, transparent 45%),
+                radial-gradient(circle at 15% 85%, #fbcfe8 0%, transparent 40%);
+        }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="fixed inset-0 pointer-events-none z-0 opacity-20 overflow-hidden">
+        <svg class="absolute top-12 left-8 w-36 h-36 text-emerald-700" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M 20 50 Q 50 15 80 50 T 20 50 Z" opacity="0.6"/>
+            <circle cx="50" cy="50" r="14" fill="currentColor" opacity="0.3"/>
+            <circle cx="30" cy="35" r="3.5"/>
+            <circle cx="70" cy="65" r="4"/>
+        </svg>
+
+        <svg class="absolute top-1/4 right-10 w-44 h-44 text-teal-700" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M 20 10 Q 50 50 80 10 M 20 90 Q 50 50 80 90"/>
+            <line x1="32" y1="26" x2="32" y2="74" stroke-dasharray="3 3"/>
+            <line x1="50" y1="50" x2="50" y2="50" stroke-width="6"/>
+            <line x1="68" y1="26" x2="68" y2="74" stroke-dasharray="3 3"/>
+        </svg>
+
+        <svg class="absolute bottom-16 left-10 w-40 h-40 text-green-700" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M 50 10 C 85 40, 85 80, 50 92 C 15 80, 15 40, 50 10 Z"/>
+        </svg>
+    </div>
+
+    <header class="w-full bg-white/90 backdrop-blur-md border-b border-slate-300 sticky top-0 z-30 px-4 py-3 shadow-sm">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div id="player-avatar-box" class="w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center text-white text-xl shadow-sm">
+                    <i id="player-avatar-icon" class="fa-solid font-bold fa-dna"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-display font-bold text-xl md:text-2xl text-slate-900">Cel-Organellen Leergame</h1>
+                        <span id="player-title-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 border border-slate-300">Cel-Ontdekker</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Herken celonderdelen & hun functies</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <button id="sound-btn" onclick="toggleSound()" class="p-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors" title="Geluid aan/uit">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-lg"></i>
+                </button>
+
+                <button onclick="openWikiModal()" class="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-sm transition-all shadow-sm">
+                    <i class="fa-solid fa-book-open text-slate-700"></i>
+                    <span class="hidden sm:inline">Cel Encyclopedie</span>
+                </button>
+
+                <button onclick="openShopModal()" class="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-sm transition-all shadow-sm">
+                    <i class="fa-solid fa-store text-slate-900"></i>
+                    <span>Winkel</span>
+                </button>
+
+                <div class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-sm shadow-sm">
+                    <i class="fa-solid fa-star text-amber-300 animate-bounce"></i>
+                    <span>Score: <span id="total-score">0</span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl w-full mx-auto p-4 md:p-6 flex-1 flex flex-col gap-6">
+        <section class="gray-card p-2 md:p-3 rounded-2xl flex items-center justify-between overflow-x-auto gap-2">
+            <button onclick="switchLevel(1)" id="level-tab-1" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all">
+                <span id="tab-icon-1" class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold">1</span>
+                <span>Dierlijke Cel</span>
+            </button>
+            <button onclick="switchLevel(2)" id="level-tab-2" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all opacity-60">
+                <span id="tab-icon-2" class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-lock text-[10px]"></i></span>
+                <span>Functies Dierlijk</span>
+            </button>
+            <button onclick="switchLevel(3)" id="level-tab-3" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all opacity-60">
+                <span id="tab-icon-3" class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-lock text-[10px]"></i></span>
+                <span>Plantaardige Cel</span>
+            </button>
+            <button onclick="switchLevel(4)" id="level-tab-4" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all opacity-60">
+                <span id="tab-icon-4" class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-lock text-[10px]"></i></span>
+                <span>Functies Plant</span>
+            </button>
+            <button onclick="switchLevel(5)" id="level-tab-5" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all opacity-60">
+                <span id="tab-icon-5" class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-lock text-[10px]"></i></span>
+                <span>Bacteriecel</span>
+            </button>
+            <button onclick="switchLevel(6)" id="level-tab-6" class="level-tab flex-1 min-w-[120px] py-2.5 px-2 rounded-xl font-display font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1.5 transition-all opacity-60">
+                <span id="tab-icon-6" class="w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-lock text-[10px]"></i></span>
+                <span>Functies Bacterie</span>
+            </button>
+        </section>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-300 shadow-sm">
+            <div>
+                <h2 id="level-title" class="font-display font-bold text-xl text-slate-900">Level 1: De Dierlijke Cel</h2>
+                <p id="level-desc" class="text-sm text-slate-600">Sleep de namen van de celonderdelen naar de juiste aanduiding op de cel.</p>
+            </div>
+            <div class="flex items-center space-x-3 self-end md:self-auto">
+                <button onclick="resetCurrentLevel()" class="px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> Reset Level
+                </button>
+            </div>
+        </div>
+
+        <div id="game-container" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1">
+            <div class="lg:col-span-4 flex flex-col gap-4">
+                <div class="gray-card p-5 rounded-3xl border-2 border-slate-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-display font-bold text-lg text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-hand-pointer text-slate-700"></i>
+                            <span id="drag-items-title">Onderdelen</span>
+                        </h3>
+                        <span id="remaining-count" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800">5/5 over</span>
+                    </div>
+                    <div id="draggable-pool" class="flex flex-col gap-2.5 min-h-[220px]">
+                    </div>
+                </div>
+
+                <div id="hint-box" class="bg-white p-4 rounded-2xl border border-slate-300 flex items-start justify-between gap-3 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <i id="hint-icon" class="fa-solid fa-lightbulb text-amber-500 text-lg mt-0.5"></i>
+                        <div class="text-xs text-slate-800 leading-relaxed">
+                            <p class="font-bold mb-0.5">Tip:</p>
+                            <p id="hint-text">Sleep een kaartje naar het juiste vakje, of tik eerst op een kaartje en daarna op het doelvak op de cel!</p>
+                        </div>
+                    </div>
+                    <button onclick="useHintPowerUp()" id="use-hint-btn" class="shrink-0 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Hint (<span id="hint-count-badge">1</span>)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 gray-card p-4 md:p-6 rounded-3xl border-2 border-slate-300 flex flex-col items-center justify-center min-h-[440px] relative overflow-hidden bg-white">
+                <div id="drop-zone-container" class="w-full h-full flex flex-col items-center justify-center relative">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="level-complete-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 border-slate-400 flex flex-col items-center text-center transform transition-all scale-95 opacity-0 duration-300">
+            <div class="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-amber-300 text-4xl mb-4 shadow-inner animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 class="font-display font-bold text-2xl text-slate-900 mb-1">Geweldig Gedaan!</h3>
+            <p class="text-sm text-slate-500 mb-4" id="modal-subtitle">Je hebt dit level succesvol afgerond.</p>
+            
+            <div class="bg-slate-100 p-4 rounded-2xl w-full mb-6 border border-slate-200 flex justify-around">
+                <div>
+                    <span class="block text-xs text-slate-500 font-medium">Behaalde Punten</span>
+                    <span class="font-display font-bold text-2xl text-slate-900" id="modal-level-score">+100</span>
+                </div>
+                <div class="border-r border-slate-300"></div>
+                <div>
+                    <span class="block text-xs text-slate-500 font-medium">Nauwkeurigheid</span>
+                    <span class="font-display font-bold text-2xl text-slate-900" id="modal-accuracy">100%</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 w-full">
+                <button onclick="closeModal('level-complete-modal'); resetCurrentLevel();" class="flex-1 py-3 px-4 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm transition-colors">
+                    Opnieuw
+                </button>
+                <button id="next-level-btn" onclick="nextLevel()" class="flex-1 py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all">
+                    Volgend Level <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="wiki-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-300 overflow-hidden">
+            <div class="p-5 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-bold text-xl text-slate-900">Cel-Organellen Encyclopedie</h3>
+                        <p class="text-xs text-slate-500">Bekijk de kenmerken en functies van alle celonderdelen</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('wiki-modal')" class="w-9 h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4" id="wiki-list">
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-300 overflow-hidden">
+            <div class="p-5 bg-amber-400 border-b border-amber-500 flex items-center justify-between text-slate-900">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center font-bold text-xl">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-bold text-xl">Biologie Winkel</h3>
+                        <p class="text-xs text-slate-800 font-medium">Geef je score punten uit aan power-ups, thema's & avatars!</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-slate-900 text-white px-3 py-1.5 rounded-xl font-bold text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-star text-amber-300"></i>
+                        <span id="shop-score-display">0</span> pt
+                    </div>
+                    <button onclick="closeModal('shop-modal')" class="w-9 h-9 rounded-full bg-amber-500/50 hover:bg-amber-500 text-slate-900 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex flex-col gap-6" id="shop-items-container">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const shopState = {
+            hints: 1,
+            activeAvatar: 'fa-dna',
+            activeTitle: 'Cel-Ontdekker',
+            activeTheme: 'theme-default',
+            unlocked: ['theme-default', 'avatar-dna', 'title-ontdekker']
+        };
+
+        const unlockedLevels = [1];
+
+        const SHOP_ITEMS = [
+            {
+                category: '💡 Power-ups',
+                items: [
+                    { id: 'powerup-hint', name: 'Auto-Hint / Onthuller', icon: 'fa-wand-magic-sparkles', cost: 40, desc: 'Plaatst direct 1 willekeurig onderdeel op de juiste plek in het huidige level!', type: 'consumable' }
+                ]
+            },
+            {
+                category: '🎨 Achtergrond Thema\'s',
+                items: [
+                    { id: 'theme-default', name: 'Bio Groen', icon: 'fa-leaf', cost: 0, desc: 'Het frisse botanische pastelthema.', type: 'theme', themeClass: '' },
+                    { id: 'theme-ocean', name: 'Ocean Blue', icon: 'fa-water', cost: 60, desc: 'Rustgevende diepzee pastelkleuren.', type: 'theme', themeClass: 'theme-ocean' },
+                    { id: 'theme-sunset', name: 'Sunset Rose', icon: 'fa-sun', cost: 100, desc: 'Warme zonsondergang met roze en perzik tinten.', type: 'theme', themeClass: 'theme-sunset' },
+                    { id: 'theme-cosmic', name: 'Cosmic Purple', icon: 'fa-user-astronaut', cost: 140, desc: 'Sfeervol paars met magische glans.', type: 'theme', themeClass: 'theme-cosmic' }
+                ]
+            },
+            {
+                category: '👑 Avatars',
+                items: [
+                    { id: 'avatar-dna', name: 'DNA-Streng', icon: 'fa-dna', cost: 0, desc: 'Het klassieke spelericoon.', type: 'avatar', avatarIcon: 'fa-dna' },
+                    { id: 'avatar-microscope', name: 'Microscoop', icon: 'fa-microscope', cost: 50, desc: 'Voor de echte onderzoeker.', type: 'avatar', avatarIcon: 'fa-microscope' },
+                    { id: 'avatar-star', name: 'Gouden Cel', icon: 'fa-star', cost: 80, desc: 'Stralend en uniek op het bord.', type: 'avatar', avatarIcon: 'fa-star' },
+                    { id: 'avatar-crown', name: 'Kroon', icon: 'fa-crown', cost: 120, desc: 'Voor de koning(in) van de biologie.', type: 'avatar', avatarIcon: 'fa-crown' }
+                ]
+            },
+            {
+                category: '🎖️ Titels',
+                items: [
+                    { id: 'title-ontdekker', name: 'Cel-Ontdekker', icon: 'fa-compass', cost: 0, desc: 'Starttitel voor nieuwsgierige leerlingen.', type: 'title', titleText: 'Cel-Ontdekker' },
+                    { id: 'title-master', name: 'Cel-Master', icon: 'fa-graduation-cap', cost: 80, desc: 'Laat zien dat je alle onderdelen kent.', type: 'title', titleText: 'Cel-Master' },
+                    { id: 'title-genie', name: 'Cytologie Genie', icon: 'fa-brain', cost: 160, desc: 'Maximale biologische expert status!', type: 'title', titleText: 'Cytologie Genie' }
+                ]
+            }
+        ];
+
+        let soundEnabled = true;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'win') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(freq, now + idx * 0.1);
+                        g.gain.setValueAtTime(0.25, now + idx * 0.1);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
+                        o.start(now + idx * 0.1);
+                        o.stop(now + idx * 0.1 + 0.3);
+                    });
+                }
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-lg';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-lg text-slate-400';
+            }
+        }
+
+        const ORGANELLES = {
+            celkern: {
+                id: 'celkern',
+                name: 'Celkern (Nucleus)',
+                color: '#e2e8f0',
+                borderColor: '#475569',
+                icon: 'fa-dharmachakra',
+                tip: '💡 De baas die het DNA bewaart en de cel aanstuurt',
+                function: 'Bevat het DNA en regelt alle processen in de cel.',
+                category: 'Besturing & Informatie'
+            },
+            mitochondrium: {
+                id: 'mitochondrium',
+                name: 'Mitochondrium',
+                color: '#f1f5f9',
+                borderColor: '#64748b',
+                icon: 'fa-bolt',
+                tip: '💡 De energiecentrale die voeding omzet in energie',
+                function: 'De energiecentrale van de cel; produceert ATP via verbranding van glucose.',
+                category: 'Energievoorziening'
+            },
+            celmembraan: {
+                id: 'celmembraan',
+                name: 'Celmembraan',
+                color: '#e2e8f0',
+                borderColor: '#334155',
+                icon: 'fa-shield-halved',
+                tip: '💡 De poortwachter die kiest wat er in en uit mag',
+                function: 'Dubbele vetlaag die de cel omgeeft en de in- en uitgang van stoffen regelt.',
+                category: 'Bescherming & Transport'
+            },
+            er: {
+                id: 'er',
+                name: 'Endoplasmatisch Reticulum',
+                color: '#cbd5e1',
+                borderColor: '#475569',
+                icon: 'fa-network-wired',
+                tip: '💡 Het gangenstelsel voor transport van stoffen',
+                function: 'Netwerk van membraanbuisjes voor het transport van eiwitten en vetten.',
+                category: 'Eiwitsynthese & Bouw'
+            },
+            golgi: {
+                id: 'golgi',
+                name: 'Golgi-systeem',
+                color: '#f1f5f9',
+                borderColor: '#64748b',
+                icon: 'fa-boxes-packing',
+                tip: '💡 Het inpakcentrum dat eiwitten verzendklaar maakt',
+                function: 'Bewerkt, verpakt en verzendt eiwitten naar hun eindbestemming.',
+                category: 'Bescherming & Transport'
+            },
+            celwand: {
+                id: 'celwand',
+                name: 'Celwand',
+                color: '#e2e8f0',
+                borderColor: '#1e293b',
+                icon: 'fa-border-all',
+                tip: '💡 De stevige buitenmuur van een planten- of bacteriecel',
+                function: 'Stevige buitenlaag die zorgt voor vorm en bescherming.',
+                category: 'Bescherming & Transport'
+            },
+            bladgroenkorrel: {
+                id: 'bladgroenkorrel',
+                name: 'Bladgroenkorrel (Chloroplast)',
+                color: '#cbd5e1',
+                borderColor: '#334155',
+                icon: 'fa-leaf',
+                tip: '💡 Groen zonnepaneeltje dat zonlicht omzet in voeding',
+                function: 'Voert fotosynthese uit: zet zonlicht, water en CO2 om in glucose en zuurstof.',
+                category: 'Energievoorziening',
+                plantOnly: true
+            },
+            vacuole: {
+                id: 'vacuole',
+                name: 'Grote Vacuole',
+                color: '#f8fafc',
+                borderColor: '#64748b',
+                icon: 'fa-droplet',
+                tip: '💡 Een grote opslagbonk vol water voor stevigheid',
+                function: 'Groot blaasje gevuld met water; geeft de plantencel stevigheid (turgor) en slaat stoffen op.',
+                category: 'Bescherming & Transport',
+                plantOnly: true
+            },
+            dna_lus: {
+                id: 'dna_lus',
+                name: 'Cirkelvormig DNA (DNA-lus)',
+                color: '#f1f5f9',
+                borderColor: '#475569',
+                icon: 'fa-dna',
+                tip: '💡 Het erfelijk materiaal dat loszweeft in de bacterie',
+                function: 'Vrij zwevend DNA in het cytoplasma dat alle celprocessen aanstuurt, omdat een bacterie geen celkern heeft.',
+                category: 'Besturing & Informatie'
+            },
+            flagel: {
+                id: 'flagel',
+                name: 'Flagel (Zweephaar)',
+                color: '#e2e8f0',
+                borderColor: '#334155',
+                icon: 'fa-location-arrow',
+                tip: '💡 De staartmotor waarmee de bacterie actief zwemt',
+                function: 'Lange staartachtige structuur waarmee de bacterie zich snel kan voortbewegen.',
+                category: 'Beweging'
+            },
+            plasmide: {
+                id: 'plasmide',
+                name: 'Plasmide',
+                color: '#f8fafc',
+                borderColor: '#64748b',
+                icon: 'fa-circle-notch',
+                tip: '💡 Klein extra DNA-ringetje met nuttige eigenschappen',
+                function: 'Cirkelvormig stukje extra DNA dat nuttige genen bevat, zoals resistentie tegen antibiotica.',
+                category: 'Besturing & Informatie'
+            },
+            kapsel: {
+                id: 'kapsel',
+                name: 'Slijmlaag (Kapsel)',
+                color: '#cbd5e1',
+                borderColor: '#1e293b',
+                icon: 'fa-layer-group',
+                tip: '💡 Kleverig schild tegen uitdroging en afweercellen',
+                function: 'Kleverige buitenste laag die de bacterie beschermt tegen uitdrogen en aanvallen van het immuunsysteem.',
+                category: 'Bescherming & Transport'
+            }
+        };
+
+        let currentLevel = 1;
+        let totalScore = 0;
+        let selectedItem = null;
+        let attemptsInLevel = 0;
+        let correctInLevel = 0;
+
+        const LEVELS = {
+            1: {
+                title: 'Level 1: De Dierlijke Cel',
+                desc: 'Herken de organellen? Sleep de kaartjes naar het juiste aanwijsvakje op de dierlijke cel.',
+                type: 'diagram-animal',
+                items: ['celkern', 'mitochondrium', 'celmembraan', 'er', 'golgi']
+            },
+            2: {
+                title: 'Level 2: Functies Dierlijke Cel',
+                desc: 'Aan welk onderdeel doet de functie-tip je denken? Sleep de tips naar de juiste organellen.',
+                type: 'function-match',
+                items: ['celkern', 'mitochondrium', 'celmembraan', 'er', 'golgi']
+            },
+            3: {
+                title: 'Level 3: De Plantaardige Cel',
+                desc: 'Een plantencel heeft speciale extra onderdelen! Sleep de namen naar de juiste plek.',
+                type: 'diagram-plant',
+                items: ['celwand', 'bladgroenkorrel', 'vacuole', 'celkern', 'mitochondrium']
+            },
+            4: {
+                title: 'Level 4: Functies Plantaardige Cel',
+                desc: 'Verbind de functie-tips met de unieke en algemene onderdelen van de plantencel.',
+                type: 'function-match',
+                items: ['celwand', 'bladgroenkorrel', 'vacuole', 'celkern', 'mitochondrium']
+            },
+            5: {
+                title: 'Level 5: De Bacteriecel (Prokaryoot)',
+                desc: 'Bacteriën zijn anders opgebouwd. Sleep de onderdelen van de bacteriecel naar hun plek.',
+                type: 'diagram-bacteria',
+                items: ['kapsel', 'celwand', 'dna_lus', 'plasmide', 'flagel']
+            },
+            6: {
+                title: 'Level 6: Functies van de Bacteriecel 🧫',
+                desc: 'Hoe overleeft en beweegt een bacterie? Sleep de functie-tips naar de juiste bacteriestructuur!',
+                type: 'function-match',
+                items: ['kapsel', 'celwand', 'dna_lus', 'plasmide', 'flagel']
+            }
+        };
+
+        window.onload = function() {
+            renderWikiModalContent();
+            updateShopUI();
+            switchLevel(1);
+        };
+
+        function switchLevel(lvlNum) {
+            if (!unlockedLevels.includes(lvlNum)) {
+                return;
+            }
+
+            currentLevel = lvlNum;
+
+            for (let i = 1; i <= 6; i++) {
+                const tab = document.getElementById(`level-tab-${i}`);
+                const icon = document.getElementById(`tab-icon-${i}`);
+                if (!tab) continue;
+
+                if (i === currentLevel) {
+                    tab.classList.remove('opacity-60');
+                    tab.classList.add('bg-slate-800', 'text-white', 'shadow-md');
+                    if (icon) {
+                        icon.className = 'w-6 h-6 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center text-xs font-bold';
+                        icon.innerText = i;
+                    }
+                } else if (unlockedLevels.includes(i)) {
+                    tab.classList.remove('bg-slate-800', 'text-white', 'shadow-md');
+                    tab.classList.add('opacity-100');
+                    if (icon) {
+                        icon.className = 'w-6 h-6 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center text-xs font-bold';
+                        icon.innerText = i;
+                    }
+                } else {
+                    tab.classList.remove('bg-slate-800', 'text-white', 'shadow-md');
+                    tab.classList.add('opacity-60');
+                    if (icon) {
+                        icon.className = 'w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold';
+                        icon.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i>';
+                    }
+                }
+            }
+
+            resetCurrentLevel();
+        }
+
+        function resetCurrentLevel() {
+            attemptsInLevel = 0;
+            correctInLevel = 0;
+            selectedItem = null;
+            renderCurrentLevel();
+        }
+
+        function renderCurrentLevel() {
+            const levelData = LEVELS[currentLevel];
+            document.getElementById('level-title').innerText = levelData.title;
+            document.getElementById('level-desc').innerText = levelData.desc;
+
+            resetHintText();
+
+            if (levelData.type === 'diagram-animal') {
+                renderDiagramLevel('animal');
+            } else if (levelData.type === 'diagram-plant') {
+                renderDiagramLevel('plant');
+            } else if (levelData.type === 'diagram-bacteria') {
+                renderDiagramLevel('bacteria');
+            } else if (levelData.type === 'function-match') {
+                renderFunctionMatchLevel();
+            }
+
+            updateRemainingCount();
+        }
+
+        function resetHintText() {
+            document.getElementById('hint-text').innerText = 'Sleep een kaartje naar het juiste vakje, of tik eerst op een kaartje en daarna op het doelvak!';
+        }
+
+        function setWrongHintText(organelleName) {
+            document.getElementById('hint-text').innerText = `❌ Helaas! Dat vakje hoort niet bij ${organelleName}. Probeer het meteen nog eens!`;
+        }
+
+        function renderDiagramLevel(cellType) {
+            const levelData = LEVELS[currentLevel];
+            const pool = document.getElementById('draggable-pool');
+            const dropContainer = document.getElementById('drop-zone-container');
+
+            document.getElementById('drag-items-title').innerText = 'Onderdelen';
+
+            let shuffledItems = [...levelData.items].sort(() => Math.random() - 0.5);
+            pool.innerHTML = shuffledItems.map(id => {
+                const item = ORGANELLES[id];
+                return `
+                    <div id="drag-${id}" draggable="true" ondragstart="handleDragStart(event, '${id}')" ondragend="handleDragEnd(event)" onclick="handleTapSelect('${id}')" 
+                         class="drag-item p-3.5 rounded-2xl border-2 border-slate-300 bg-white flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                        <div class="flex items-center space-x-3 pointer-events-none">
+                            <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-bold">
+                                <i class="fa-solid ${item.icon}"></i>
+                            </div>
+                            <span class="font-display font-bold text-sm text-slate-800">${item.name}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (cellType === 'animal') {
+                dropContainer.innerHTML = `
+                    <div class="relative w-full max-w-[620px] aspect-[4/3] flex items-center justify-center">
+                        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 600 450" fill="none">
+                            <path d="M 100 220 C 80 120, 200 60, 320 70 C 450 80, 520 150, 500 280 C 480 390, 340 420, 210 400 C 120 380, 110 290, 100 220 Z" 
+                                  fill="#fbcfe8" stroke="#f43f5e" stroke-width="5" stroke-dasharray="8 4"/>
+                            <path d="M 110 225 C 92 130, 205 72, 318 80 C 442 90, 508 155, 490 275 C 472 380, 338 408, 212 390 C 128 372, 118 292, 110 225 Z" 
+                                  fill="#fff1f2" opacity="0.6"/>
+
+                            <g transform="translate(180, 140) rotate(-15)">
+                                <ellipse cx="25" cy="15" rx="28" ry="16" fill="#fca5a5" stroke="#e11d48" stroke-width="2.5"/>
+                                <path d="M 8 15 Q 15 8 22 15 T 35 15 T 42 15" fill="none" stroke="#be123c" stroke-width="2"/>
+                            </g>
+
+                            <g transform="translate(380, 310) rotate(25)">
+                                <ellipse cx="25" cy="15" rx="26" ry="15" fill="#fca5a5" stroke="#e11d48" stroke-width="2.5"/>
+                                <path d="M 8 15 Q 15 8 22 15 T 35 15 T 42 15" fill="none" stroke="#be123c" stroke-width="2"/>
+                            </g>
+
+                            <path d="M 230 200 Q 210 170 200 230 Q 190 280 230 290 M 215 185 Q 185 200 180 250 Q 175 300 215 310" 
+                                  fill="none" stroke="#c084fc" stroke-width="7" stroke-linecap="round"/>
+
+                            <circle cx="310" cy="225" r="50" fill="#e9d5ff" stroke="#9333ea" stroke-width="4"/>
+                            <circle cx="310" cy="225" r="18" fill="#7e22ce"/>
+
+                            <g transform="translate(370, 150) rotate(10)">
+                                <path d="M 0 0 Q 30 -10 60 0 M -5 12 Q 30 0 65 12 M 0 24 Q 30 14 60 24" 
+                                      fill="none" stroke="#2dd4bf" stroke-width="6" stroke-linecap="round"/>
+                                <circle cx="-10" cy="0" r="4" fill="#14b8a6"/>
+                                <circle cx="70" cy="12" r="4" fill="#14b8a6"/>
+                            </g>
+
+                            <polyline points="200,80 180,30 140,30" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="215,135 160,110 110,110" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="310,175 310,60 360,60" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="200,240 120,240 80,240" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="420,150 480,110 520,110" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                        </svg>
+
+                        <div id="drop-celmembraan" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'celmembraan')" onclick="handleTargetClick('celmembraan')"
+                             class="drop-target absolute top-[2%] left-[2%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-mitochondrium" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'mitochondrium')" onclick="handleTargetClick('mitochondrium')"
+                             class="drop-target absolute top-[20%] left-[0%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-celkern" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'celkern')" onclick="handleTargetClick('celkern')"
+                             class="drop-target absolute top-[8%] right-[18%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-er" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'er')" onclick="handleTargetClick('er')"
+                             class="drop-target absolute top-[48%] left-[0%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-golgi" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'golgi')" onclick="handleTargetClick('golgi')"
+                             class="drop-target absolute top-[20%] right-[0%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+                    </div>
+                `;
+            } else if (cellType === 'plant') {
+                dropContainer.innerHTML = `
+                    <div class="relative w-full max-w-[620px] aspect-[4/3] flex items-center justify-center">
+                        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 600 450" fill="none">
+                            <polygon points="80,50 520,50 560,225 520,400 80,400 40,225" 
+                                     fill="#dcfce7" stroke="#16a34a" stroke-width="12" stroke-linejoin="round"/>
+                            
+                            <polygon points="90,62 510,62 548,225 510,388 90,388 52,225" 
+                                     fill="#f0fdf4" stroke="#4ade80" stroke-width="3"/>
+
+                            <path d="M 260 160 C 340 140, 480 180, 470 280 C 460 360, 320 380, 270 320 C 230 270, 210 180, 260 160 Z" 
+                                  fill="#bae6fd" stroke="#0284c7" stroke-width="4" opacity="0.8"/>
+                            <path d="M 280 180 Q 320 160 380 180" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+
+                            <g transform="translate(130, 100) rotate(20)">
+                                <ellipse cx="26" cy="16" rx="28" ry="16" fill="#86efac" stroke="#15803d" stroke-width="2.5"/>
+                                <line x1="10" y1="12" x2="42" y2="12" stroke="#166534" stroke-width="2"/>
+                                <line x1="12" y1="20" x2="40" y2="20" stroke="#166534" stroke-width="2"/>
+                            </g>
+                            <g transform="translate(140, 320) rotate(-15)">
+                                <ellipse cx="26" cy="16" rx="28" ry="16" fill="#86efac" stroke="#15803d" stroke-width="2.5"/>
+                                <line x1="10" y1="12" x2="42" y2="12" stroke="#166534" stroke-width="2"/>
+                                <line x1="12" y1="20" x2="40" y2="20" stroke="#166534" stroke-width="2"/>
+                            </g>
+
+                            <g transform="translate(430, 100) rotate(-30)">
+                                <ellipse cx="22" cy="14" rx="24" ry="14" fill="#fca5a5" stroke="#e11d48" stroke-width="2.5"/>
+                                <path d="M 6 14 Q 12 8 18 14 T 30 14" fill="none" stroke="#be123c" stroke-width="2"/>
+                            </g>
+
+                            <circle cx="160" cy="220" r="38" fill="#e9d5ff" stroke="#9333ea" stroke-width="3.5"/>
+                            <circle cx="160" cy="220" r="14" fill="#7e22ce"/>
+
+                            <polyline points="80,120 50,40 100,40" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="150,105 180,35 240,35" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="350,220 380,50 420,50" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="160,258 160,375 200,375" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="450,110 500,110 530,110" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                        </svg>
+
+                        <div id="drop-celwand" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'celwand')" onclick="handleTargetClick('celwand')"
+                             class="drop-target absolute top-[2%] left-[2%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-bladgroenkorrel" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'bladgroenkorrel')" onclick="handleTargetClick('bladgroenkorrel')"
+                             class="drop-target absolute top-[2%] left-[36%] w-[140px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-vacuole" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'vacuole')" onclick="handleTargetClick('vacuole')"
+                             class="drop-target absolute top-[5%] right-[2%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-celkern" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'celkern')" onclick="handleTargetClick('celkern')"
+                             class="drop-target absolute bottom-[8%] left-[28%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-mitochondrium" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'mitochondrium')" onclick="handleTargetClick('mitochondrium')"
+                             class="drop-target absolute top-[20%] right-[0%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+                    </div>
+                `;
+            } else if (cellType === 'bacteria') {
+                dropContainer.innerHTML = `
+                    <div class="relative w-full max-w-[620px] aspect-[4/3] flex items-center justify-center">
+                        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 600 450" fill="none">
+                            <rect x="130" y="100" width="300" height="180" rx="90" fill="#fef08a" stroke="#eab308" stroke-width="8"/>
+                            <rect x="142" y="112" width="276" height="156" rx="78" fill="#fed7aa" stroke="#f97316" stroke-width="6"/>
+                            <rect x="154" y="124" width="252" height="132" rx="66" fill="#e0f2fe" stroke="#0284c7" stroke-width="3"/>
+
+                            <path d="M 430 190 C 480 180, 490 230, 520 210 C 550 190, 560 240, 590 220" 
+                                  fill="none" stroke="#0284c7" stroke-width="6" stroke-linecap="round"/>
+
+                            <path d="M 210 170 C 230 140, 290 150, 270 190 C 250 230, 320 220, 290 170 C 260 150, 220 200, 210 170 Z" 
+                                  fill="none" stroke="#a855f7" stroke-width="5" stroke-linecap="round"/>
+
+                            <circle cx="350" cy="165" r="14" fill="none" stroke="#ec4899" stroke-width="4"/>
+
+                            <circle cx="190" cy="150" r="3" fill="#334155"/>
+                            <circle cx="210" cy="220" r="3" fill="#334155"/>
+                            <circle cx="320" cy="230" r="3" fill="#334155"/>
+                            <circle cx="370" cy="210" r="3" fill="#334155"/>
+
+                            <polyline points="150,100 110,50 70,50" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="200,112 240,40 280,40" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="250,180 200,310 150,310" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="350,165 420,70 460,70" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                            <polyline points="510,205 520,330 520,380" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3"/>
+                        </svg>
+
+                        <div id="drop-kapsel" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'kapsel')" onclick="handleTargetClick('kapsel')"
+                             class="drop-target absolute top-[6%] left-[2%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-celwand" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'celwand')" onclick="handleTargetClick('celwand')"
+                             class="drop-target absolute top-[2%] left-[45%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-dna_lus" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'dna_lus')" onclick="handleTargetClick('dna_lus')"
+                             class="drop-target absolute bottom-[18%] left-[18%] w-[140px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-plasmide" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'plasmide')" onclick="handleTargetClick('plasmide')"
+                             class="drop-target absolute top-[10%] right-[8%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+
+                        <div id="drop-flagel" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'flagel')" onclick="handleTargetClick('flagel')"
+                             class="drop-target absolute bottom-[2%] right-[5%] w-[130px] h-[48px] rounded-xl border-2 border-dashed border-slate-400 bg-white/90 shadow-sm flex items-center justify-center text-center text-xs font-bold text-slate-600 cursor-pointer hover:border-slate-800">
+                            Sleep hier
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderFunctionMatchLevel() {
+            const levelData = LEVELS[currentLevel];
+            const pool = document.getElementById('draggable-pool');
+            const dropContainer = document.getElementById('drop-zone-container');
+
+            document.getElementById('drag-items-title').innerText = 'Tips & Hints';
+
+            let shuffledItems = [...levelData.items].sort(() => Math.random() - 0.5);
+            pool.innerHTML = shuffledItems.map(id => {
+                const item = ORGANELLES[id];
+                return `
+                    <div id="drag-${id}" draggable="true" ondragstart="handleDragStart(event, '${id}')" ondragend="handleDragEnd(event)" onclick="handleTapSelect('${id}')" 
+                         class="drag-item p-3.5 rounded-2xl border-2 border-slate-300 bg-white shadow-sm hover:shadow-md transition-all text-xs font-bold text-slate-800 leading-snug cursor-grab">
+                        <span class="pointer-events-none">${item.tip}</span>
+                    </div>
+                `;
+            }).join('');
+
+            dropContainer.innerHTML = `
+                <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-3 p-2">
+                    ${levelData.items.map(id => {
+                        const item = ORGANELLES[id];
+                        return `
+                            <div class="bg-white p-3.5 rounded-2xl border border-slate-300 shadow-sm flex flex-col justify-between gap-2">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold bg-slate-100 text-slate-800">
+                                        <i class="fa-solid ${item.icon}"></i>
+                                    </div>
+                                    <span class="font-display font-bold text-sm text-slate-900">${item.name}</span>
+                                </div>
+                                <div id="drop-${id}" 
+                                     ondragover="handleDragOver(event)" 
+                                     ondragleave="handleDragLeave(event)" 
+                                     ondrop="handleDrop(event, '${id}')"
+                                     onclick="handleTargetClick('${id}')"
+                                     class="drop-target p-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 min-h-[54px] flex items-center justify-center text-center text-xs font-semibold text-slate-500 cursor-pointer hover:border-slate-800">
+                                    Sleep de bijbehorende tip hier naartoe...
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function openShopModal() {
+            renderShopContent();
+            openModal('shop-modal');
+        }
+
+        function updateShopUI() {
+            document.getElementById('hint-count-badge').innerText = shopState.hints;
+            document.getElementById('total-score').innerText = totalScore;
+            document.getElementById('shop-score-display').innerText = totalScore;
+            document.getElementById('player-avatar-icon').className = `fa-solid font-bold ${shopState.activeAvatar}`;
+            document.getElementById('player-title-badge').innerText = shopState.activeTitle;
+        }
+
+        function renderShopContent() {
+            document.getElementById('shop-score-display').innerText = totalScore;
+            const container = document.getElementById('shop-items-container');
+
+            container.innerHTML = SHOP_ITEMS.map(cat => `
+                <div>
+                    <h4 class="font-display font-bold text-lg text-slate-900 mb-3">${cat.category}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${cat.items.map(item => {
+                            const isUnlocked = shopState.unlocked.includes(item.id) || item.cost === 0;
+                            const isEquipped = (item.type === 'theme' && shopState.activeTheme === item.id) ||
+                                               (item.type === 'avatar' && shopState.activeAvatar === item.avatarIcon) ||
+                                               (item.type === 'title' && shopState.activeTitle === item.titleText);
+
+                            let buttonHtml = '';
+                            if (item.type === 'consumable') {
+                                buttonHtml = `
+                                    <button onclick="buyShopItem('${item.id}')" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-xs transition-all flex items-center gap-1.5">
+                                        <i class="fa-solid fa-cart-shopping"></i> Koop voor ${item.cost} pt
+                                    </button>
+                                `;
+                            } else if (isEquipped) {
+                                buttonHtml = `
+                                    <span class="px-3 py-1.5 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-check text-emerald-400"></i> Actief
+                                    </span>
+                                `;
+                            } else if (isUnlocked) {
+                                buttonHtml = `
+                                    <button onclick="equipShopItem('${item.id}')" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold text-xs transition-all">
+                                        Gebruiken
+                                    </button>
+                                `;
+                            } else {
+                                const canAfford = totalScore >= item.cost;
+                                buttonHtml = `
+                                    <button onclick="buyShopItem('${item.id}')" ${!canAfford ? 'disabled' : ''} class="px-4 py-2 rounded-xl ${canAfford ? 'bg-amber-400 hover:bg-amber-500 text-slate-900 cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-not-allowed'} font-bold text-xs transition-all flex items-center gap-1.5">
+                                        <i class="fa-solid fa-lock text-xs"></i> ${item.cost} pt
+                                    </button>
+                                `;
+                            }
+
+                            return `
+                                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center text-lg shrink-0">
+                                            <i class="fa-solid ${item.icon}"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-display font-bold text-sm text-slate-900">${item.name}</h5>
+                                            <p class="text-xs text-slate-500">${item.desc}</p>
+                                        </div>
+                                    </div>
+                                    ${buttonHtml}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function buyShopItem(itemId) {
+            let foundItem = null;
+            SHOP_ITEMS.forEach(cat => {
+                const match = cat.items.find(i => i.id === itemId);
+                if (match) foundItem = match;
+            });
+
+            if (!foundItem) return;
+
+            if (totalScore >= foundItem.cost) {
+                totalScore -= foundItem.cost;
+                playSound('correct');
+
+                if (foundItem.type === 'consumable') {
+                    if (foundItem.id === 'powerup-hint') shopState.hints++;
+                } else {
+                    if (!shopState.unlocked.includes(foundItem.id)) {
+                        shopState.unlocked.push(foundItem.id);
+                    }
+                    equipShopItem(foundItem.id);
+                }
+
+                updateShopUI();
+                renderShopContent();
+            } else {
+                playSound('wrong');
+            }
+        }
+
+        function equipShopItem(itemId) {
+            let foundItem = null;
+            SHOP_ITEMS.forEach(cat => {
+                const match = cat.items.find(i => i.id === itemId);
+                if (match) foundItem = match;
+            });
+
+            if (!foundItem) return;
+
+            if (foundItem.type === 'theme') {
+                document.body.className = `text-slate-800 flex flex-col min-h-screen ${foundItem.themeClass}`;
+                shopState.activeTheme = foundItem.id;
+            } else if (foundItem.type === 'avatar') {
+                shopState.activeAvatar = foundItem.avatarIcon;
+            } else if (foundItem.type === 'title') {
+                shopState.activeTitle = foundItem.titleText;
+            }
+
+            updateShopUI();
+            renderShopContent();
+        }
+
+        function useHintPowerUp() {
+            if (shopState.hints <= 0) {
+                openShopModal();
+                return;
+            }
+
+            const remainingCards = Array.from(document.querySelectorAll('#draggable-pool .drag-item'));
+            if (remainingCards.length === 0) return;
+
+            const firstCard = remainingCards[0];
+            const itemId = firstCard.id.replace('drag-', '');
+
+            shopState.hints--;
+            updateShopUI();
+
+            validateMatch(itemId, itemId);
+        }
+
+        function handleDragStart(e, id) {
+            e.dataTransfer.setData('text/plain', id);
+            e.target.classList.add('dragging');
+            selectedItem = id;
+        }
+
+        function handleDragEnd(e) {
+            document.querySelectorAll('.drag-item').forEach(el => el.classList.remove('dragging'));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function clearSelectionRings() {
+            document.querySelectorAll('.drag-item').forEach(el => el.classList.remove('ring-4', 'ring-slate-400'));
+        }
+
+        function handleTapSelect(id) {
+            clearSelectionRings();
+            selectedItem = id;
+            const itemEl = document.getElementById(`drag-${id}`);
+            if (itemEl) {
+                itemEl.classList.add('ring-4', 'ring-slate-400');
+            }
+            document.getElementById('hint-text').innerText = `Geselecteerd: ${ORGANELLES[id].name}. Tik nu op het doelvak om te plaatsen!`;
+        }
+
+        function handleTargetClick(targetId) {
+            if (selectedItem) {
+                validateMatch(selectedItem, targetId);
+            }
+        }
+
+        function handleDrop(e, targetId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const draggedId = e.dataTransfer.getData('text/plain') || selectedItem;
+            if (draggedId) {
+                validateMatch(draggedId, targetId);
+            }
+        }
+
+        function validateMatch(draggedId, targetId) {
+            attemptsInLevel++;
+            const dropEl = document.getElementById(`drop-${targetId}`);
+            const dragEl = document.getElementById(`drag-${draggedId}`);
+            const organelle = ORGANELLES[draggedId];
+
+            if (draggedId === targetId) {
+                playSound('correct');
+                correctInLevel++;
+                totalScore += 20;
+                document.getElementById('total-score').innerText = totalScore;
+
+                dropEl.classList.add('correct');
+                dropEl.onclick = null;
+                
+                dropEl.innerHTML = `
+                    <div class="flex items-center justify-center space-x-1.5 font-display font-bold text-xs text-slate-900">
+                        <i class="fa-solid ${organelle.icon}"></i>
+                        <span>${organelle.name}</span>
+                        <i class="fa-solid fa-circle-check text-emerald-600 ml-1"></i>
+                    </div>
+                `;
+
+                if (dragEl) dragEl.remove();
+                selectedItem = null;
+                clearSelectionRings();
+                resetHintText();
+                updateRemainingCount();
+
+                checkLevelCompletion();
+            } else {
+                playSound('wrong');
+                setWrongHintText(organelle.name);
+
+                dropEl.classList.add('wrong');
+                if (dragEl) {
+                    dragEl.classList.add('shake-card');
+                }
+
+                setTimeout(() => {
+                    dropEl.classList.remove('wrong');
+                    if (dragEl) dragEl.classList.remove('shake-card');
+                }, 400);
+
+                selectedItem = null;
+                clearSelectionRings();
+            }
+        }
+
+        function updateRemainingCount() {
+            const levelData = LEVELS[currentLevel];
+            const remaining = document.querySelectorAll('#draggable-pool .drag-item').length;
+            const countBadge = document.getElementById('remaining-count');
+            if (countBadge) {
+                countBadge.innerText = `${remaining}/${levelData.items.length} over`;
+            }
+        }
+
+        function checkLevelCompletion() {
+            const remaining = document.querySelectorAll('#draggable-pool .drag-item').length;
+            if (remaining === 0) {
+                playSound('win');
+                launchConfetti();
+
+                if (currentLevel < 6 && !unlockedLevels.includes(currentLevel + 1)) {
+                    unlockedLevels.push(currentLevel + 1);
+                }
+
+                const accuracy = Math.round((LEVELS[currentLevel].items.length / Math.max(attemptsInLevel, 1)) * 100);
+                document.getElementById('modal-accuracy').innerText = `${accuracy}%`;
+                document.getElementById('modal-level-score').innerText = `+${correctInLevel * 20}`;
+
+                const nextBtn = document.getElementById('next-level-btn');
+                if (currentLevel < 6) {
+                    nextBtn.style.display = 'inline-flex';
+                    document.getElementById('modal-subtitle').innerText = 'Je hebt dit level succesvol afgerond.';
+                } else {
+                    nextBtn.style.display = 'none';
+                    document.getElementById('modal-subtitle').innerText = 'Gefeliciteerd! Je hebt ALLE 6 de cel-levels met succes voltooid!';
+                }
+
+                openModal('level-complete-modal');
+            }
+        }
+
+        function nextLevel() {
+            closeModal('level-complete-modal');
+            if (currentLevel < 6) {
+                switchLevel(currentLevel + 1);
+            }
+        }
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                const card = modal.querySelector('div');
+                if (card) {
+                    card.classList.remove('scale-95', 'opacity-0');
+                    card.classList.add('scale-100', 'opacity-100');
+                }
+            }, 10);
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            const card = modal.querySelector('div');
+            if (card) {
+                card.classList.remove('scale-100', 'opacity-100');
+                card.classList.add('scale-95', 'opacity-0');
+            }
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function openWikiModal() {
+            openModal('wiki-modal');
+        }
+
+        function renderWikiModalContent() {
+            const wikiList = document.getElementById('wiki-list');
+            wikiList.innerHTML = Object.values(ORGANELLES).map(item => `
+                <div class="p-4 rounded-2xl border-2 bg-white flex flex-col justify-between gap-2 shadow-sm" style="border-color: ${item.borderColor}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-base bg-slate-100 text-slate-800">
+                                <i class="fa-solid ${item.icon}"></i>
+                            </div>
+                            <h4 class="font-display font-bold text-base text-slate-800">${item.name}</h4>
+                        </div>
+                        ${item.plantOnly ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">Alleen Plant</span>' : ''}
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">${item.function}</p>
+                    <span class="text-[11px] font-semibold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg w-max">
+                        <i class="fa-solid fa-tag text-[9px] mr-1"></i> ${item.category}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function launchConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const pieces = [];
+            const colors = ['#0f172a', '#1e293b', '#334155', '#475569', '#16a34a', '#0284c7', '#d97706'];
+
+            for (let i = 0; i < 80; i++) {
+                pieces.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 3 + 2,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360
+                });
+            }
+
+            function update() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    p.rotation += 2;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+
+                if (pieces.some(p => p.y < canvas.height)) {
+                    requestAnimationFrame(update);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            update();
+        }
+    </script>
+</body>
+</html>
